@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>成績查詢</title>
+<style>
+:root{--bg:#eef1ee;--card:#fff;--ink:#17201d;--muted:#5f6964;--line:#e3e7e3;--accent:#1f6f5c;--accent-2:#2a8a72;--accent-ink:#fff;--warn:#b3412e;--warn-bg:#fdece8;--soft:#e6f2ed;--chip:#f2f5f3;--shade:rgba(15,20,18,.5);--field:#838d88;--on-accent-track:rgba(255,255,255,.25);--on-accent-panel:rgba(255,255,255,.14)}
+/* --field：輸入框外框，對卡片底色至少 3:1；--on-accent-*：疊在主色上的半透明層，深色模式主色變淺，所以改用深色疊層 */
+@media (prefers-color-scheme:dark){:root{--bg:#0f1312;--card:#1a1f1d;--ink:#e9eeeb;--muted:#9aa5a0;--line:#2a312e;--accent:#4fb596;--accent-2:#63c7a8;--accent-ink:#0b1a15;--warn:#f08a74;--warn-bg:#3a201b;--soft:#1d2c27;--chip:#222927;--shade:rgba(0,0,0,.65);--field:#6b7671;--on-accent-track:rgba(11,26,21,.22);--on-accent-panel:rgba(11,26,21,.12)}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.55;font-size:16px}
+main{max-width:480px;margin:0 auto;padding:20px 14px calc(28px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;gap:12px;margin:6px 4px 18px}
+.logo{width:44px;height:44px;border-radius:12px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none}
+header h1{font-size:1.35rem;margin:0;line-height:1.2}
+header p{margin:2px 0 0;color:var(--muted);font-size:.88rem}
+.card{background:var(--card);border-radius:18px;padding:18px 16px;box-shadow:0 1px 2px rgba(0,0,0,.04),0 4px 16px rgba(0,0,0,.04)}
+label{display:block;font-size:.9rem;font-weight:600;margin:0 0 6px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.sel{position:relative}
+.sel::after{content:"";position:absolute;right:14px;top:50%;width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:translateY(-70%) rotate(45deg);pointer-events:none}
+select,input{width:100%;height:54px;font:inherit;font-size:1.15rem;padding:0 14px;border:1.5px solid var(--field);border-radius:12px;background:var(--chip);color:var(--ink);-webkit-appearance:none;appearance:none}
+select:disabled{opacity:.55}
+select:focus,input:focus{outline:none;border-color:var(--accent);background:var(--card)}
+select:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+#sid{font-size:1.6rem;letter-spacing:.6em;text-align:center;padding-left:.6em}
+#sid::placeholder{letter-spacing:.3em;color:var(--muted);opacity:1}
+.bad{border-color:var(--warn)!important;background:var(--warn-bg)!important}
+.field{margin-bottom:18px}
+.help{color:var(--muted);font-size:.85rem;margin:6px 2px 0}
+.nw{white-space:nowrap}
+.btn{width:100%;height:56px;font:inherit;font-weight:700;font-size:1.1rem;border:0;border-radius:14px;background:var(--accent);color:var(--accent-ink);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn:active{transform:scale(.985)}
+.btn:disabled{opacity:.7}
+.btn.sec{background:var(--chip);color:var(--ink)}
+.spin{width:18px;height:18px;border:2.5px solid currentColor;border-right-color:transparent;border-radius:50%;animation:rot .7s linear infinite;display:none}
+.btn.busy .spin{display:inline-block}
+@keyframes rot{to{transform:rotate(360deg)}}
+.msg{display:none;margin:12px 0 0;padding:12px 14px;border-radius:12px;background:var(--warn-bg);color:var(--warn);font-size:.95rem;font-weight:600}
+.msg.on{display:block}
+.msg.info{background:var(--soft);color:var(--ink);font-weight:500}
+.notice{display:flex;gap:8px;align-items:flex-start;background:var(--soft);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:11px 14px;margin:0 0 12px;font-size:.92rem;line-height:1.5;white-space:pre-line}
+.notice::before{content:"📢";flex:none}
+.notice[hidden]{display:none}
+.closed{text-align:center;padding:18px 6px}
+.closed .ic{font-size:2rem;margin-bottom:6px}
+.closed b{font-size:1.1rem;display:block}
+.closed p{color:var(--muted);margin:6px 0 0;font-size:.9rem}
+.help b{color:var(--ink)}
+.upd[hidden]{display:none}
+.tlink{text-align:right;margin:18px 6px 0;font-size:.85rem}
+.tlink[hidden]{display:none}
+.tlink a{color:var(--muted);text-decoration:none;padding:6px 4px;border-radius:6px}
+.tlink a:hover{text-decoration:underline;text-underline-offset:3px}
+.tlink a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.note{color:var(--muted);font-size:.85rem;margin:14px 6px 0;line-height:1.6}
+
+/* 結果頁 */
+#result{display:none}
+.who{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 12px}
+.who h2{font-size:1.3rem;margin:0;min-width:0}
+.who h2:focus{outline:none}
+.sech{font-size:1rem;margin:22px 2px 8px}
+.who span{flex:none;font-size:.9rem;color:var(--muted);background:var(--chip);padding:3px 10px;border-radius:99px}
+.items{list-style:none;margin:0;padding:0}
+.tag{font-size:.75rem;font-weight:700;color:var(--accent);background:var(--soft);padding:1px 7px;border-radius:6px}
+.upd{color:var(--muted);font-size:.85rem;text-align:center;margin:10px 0 0}
+/* 分項：原始分數 × 占比 = 換算得分 */
+.how{font-size:.8rem;color:var(--muted);background:var(--chip);border-radius:10px;padding:8px 10px;margin:0 0 6px;line-height:1.6}
+.how b{color:var(--ink)}
+.row2{display:block;padding:12px 2px;border-bottom:1px solid var(--line)}
+.row2:last-child{border-bottom:0}
+.row2 .nm{font-weight:700;font-size:1.02rem;display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:7px}
+.cells{display:grid;grid-template-columns:1fr auto 1fr auto 1.2fr;align-items:stretch;gap:4px;font-variant-numeric:tabular-nums}
+.cell{display:flex;flex-direction:column;justify-content:center;min-width:0;text-align:center;background:var(--chip);border-radius:10px;padding:6px 4px}
+.cell small{display:block;font-size:.75rem;color:var(--muted);font-weight:600;margin-bottom:1px;white-space:nowrap}
+.cell b{font-size:1.1rem;font-weight:700}
+.cell.res{background:var(--soft)}
+.cell.res small,.cell.res.na b{color:var(--ink)}
+.cell.res b{font-size:1.25rem;font-weight:800;color:var(--accent)}
+.op{color:var(--muted);font-weight:700;align-self:center}
+.cell.na b{font-size:.85rem;color:var(--muted);font-weight:600}
+.cell.st b{font-size:.9rem;color:var(--warn)}
+/* 單一分項底下的提醒（缺交、暫以 0 分計）；頁尾說明用 .note，兩者分開命名 */
+.inote{font-size:.8rem;color:var(--warn);margin-top:5px}
+.total{margin-top:14px;background:var(--accent);color:var(--accent-ink);border-radius:16px;padding:16px 18px;display:flex;justify-content:space-between;align-items:center}
+.total small{display:block;opacity:.85;font-size:.78rem;font-weight:500}
+.total .tl{font-weight:700;font-size:1.05rem}
+.total .tv{font-size:2.2rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.totalwrap{margin-top:14px;background:var(--accent);color:var(--accent-ink);border-radius:16px;overflow:hidden}
+.totalwrap .total{margin-top:0;border-radius:0}
+.prog{padding:0 18px 14px}
+.segs{display:flex;gap:3px;height:12px}
+.segs i{border-radius:4px;border:1.5px dashed var(--accent-ink);opacity:.75;background:transparent;min-width:6px}
+.segs i.ok{background:var(--accent-ink);border:0;opacity:1}
+.prog .pt{font-size:.8rem;margin-top:8px;opacity:.95}
+.lg{font-size:.8rem;margin-top:8px;line-height:1.6}
+.lg div{display:flex;gap:6px;align-items:baseline}
+.lg .d{flex:none;width:10px;height:10px;border-radius:3px;border:1.5px dashed var(--accent-ink);display:inline-block;transform:translateY(1px)}
+.lg .d.ok{background:var(--accent-ink);border:0}
+.ing{display:inline-block;margin-left:8px;font-size:.7rem;font-weight:700;padding:1px 8px;border-radius:99px;background:var(--on-accent-track);vertical-align:2px}
+.total .tv{white-space:nowrap}
+.total{gap:12px}
+.total .tv small{display:inline;font-size:.95rem;font-weight:600;opacity:.8;margin-left:4px}
+.conv{margin:0 18px 16px;padding:12px 14px;border-radius:12px;background:var(--on-accent-panel);font-size:.86rem;line-height:1.55}
+.cv1 b{font-weight:800}
+.cv2{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:6px;padding-top:8px;border-top:1px solid var(--on-accent-track);flex-wrap:wrap}
+.cv2 b{font-size:1.6rem;font-weight:800;line-height:1}.cv2 b small{font-size:.8rem;font-weight:600}
+.conv>small{display:block;opacity:.8;font-size:.72rem;margin-top:6px}
+.attbox{margin-top:16px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline}
+.attbox b{font-size:.95rem}.attbox span{font-size:.92rem}.attbox em{font-style:normal;font-weight:800;color:var(--ink)}.attbox small{color:var(--muted);font-size:.78rem;margin-left:auto}
+.dist{margin-top:16px;padding:4px 12px;border:1px solid var(--line);border-radius:16px}
+.dist summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;min-height:52px;font-weight:700}
+.dist summary::-webkit-details-marker{display:none}
+.dist summary small{display:block;font-weight:500;font-size:.8rem;color:var(--muted)}
+.dist summary::after{content:"";flex:none;margin-left:auto;width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:translateY(-3px) rotate(45deg)}
+.dist[open] summary::after{transform:translateY(2px) rotate(-135deg)}
+.dist[open]{padding-bottom:10px}
+.dist summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:10px}
+.dh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:0 2px 10px;flex-wrap:wrap}
+.dh b{font-size:1rem}.dh b small{font-size:.72rem;color:var(--muted);font-weight:500}
+.dtabs{display:flex;gap:6px;overflow-x:auto;margin:0 0 12px;padding-bottom:2px;scrollbar-width:none}
+.dtabs::-webkit-scrollbar{display:none}
+.dtab{flex:none;font:inherit;font-size:.82rem;font-weight:600;border:1.5px solid var(--line);background:var(--chip);color:var(--muted);border-radius:99px;padding:5px 12px;cursor:pointer;white-space:nowrap}
+.dtab.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.dtab:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.dh span{font-size:.75rem;color:var(--muted)}
+/* 分布圖分三層，文字互不重疊：最上面 22px 放「平均」標籤；每根柱子上方 34px 放「你在這組」和人數；下面才是柱子 */
+.bars{display:flex;align-items:flex-end;gap:3px;height:180px;padding:22px 0 22px;position:relative}
+.bar{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;position:relative;min-width:0;padding-top:34px}
+.bar i{display:block;width:100%;background:var(--line);border-radius:4px 4px 0 0}
+.bar.on i{background:var(--accent)}
+.bn{position:relative;z-index:1;font-size:.75rem;color:var(--muted);line-height:1;margin-bottom:3px;font-variant-numeric:tabular-nums;background:var(--card);padding:0 2px;border-radius:4px}
+.bl{position:absolute;bottom:-20px;font-size:.75rem;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.bar em{position:relative;z-index:2;font-style:normal;font-size:.75rem;font-weight:700;color:var(--accent-ink);background:var(--accent);padding:1px 5px;border-radius:6px;white-space:nowrap;margin-bottom:3px;line-height:1.3}
+.axy{font-size:.75rem;color:var(--muted);font-weight:600;margin:0 0 4px 2px}
+.axx{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);font-weight:600;margin:4px 2px 0}
+.dm{margin:8px 2px 0;font-size:.85rem;color:var(--muted);text-align:center}
+.dm b{color:var(--ink)}
+.hint{color:var(--muted);font-size:.78rem;margin:12px 4px 0;text-align:center}
+.out{margin-top:14px;background:var(--chip);color:var(--ink);font-weight:600}
+.timer{color:var(--muted);font-size:.85rem;text-align:center;margin-top:8px}
+.tbar{height:4px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:12px}
+.tbar i{display:block;height:100%;width:100%;background:var(--accent);border-radius:99px;transition:width 1s linear}
+.tbar.low i{background:var(--warn)}
+.avg{position:absolute;top:18px;bottom:22px;width:0;border-left:2px dashed var(--muted);pointer-events:none}
+.avg span{position:absolute;top:-18px;left:0;transform:translateX(-50%);font-size:.75rem;font-weight:700;white-space:nowrap;background:var(--card);padding:0 3px;line-height:1.3}
+.avg.l span{transform:translateX(-4px)}
+.avg.r span{transform:translateX(calc(-100% + 4px))}
+
+.modal{position:fixed;inset:0;background:var(--shade);display:none;align-items:flex-end;justify-content:center;padding:12px;z-index:9}
+.modal.on{display:flex;animation:fade .15s}
+.box{background:var(--card);border-radius:20px;padding:24px 20px calc(16px + env(safe-area-inset-bottom));max-width:440px;width:100%;text-align:center;animation:up .2s ease-out}
+.box .ic{width:52px;height:52px;border-radius:50%;background:var(--warn-bg);color:var(--warn);display:grid;place-items:center;margin:0 auto 10px;font-size:1.6rem;font-weight:800}
+.box h2{margin:0 0 6px;font-size:1.15rem}
+.box p{margin:0 0 18px;font-size:1rem;color:var(--muted);white-space:pre-line}
+.acts{display:grid;gap:8px}
+.btn:focus-visible,.tw .btn:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+@keyframes up{from{transform:translateY(30px);opacity:0}}
+@keyframes fade{from{opacity:0}}
+@media (min-width:560px){.modal{align-items:center}}
+/* 快要自動登出：固定在畫面下方，按「繼續看」重新計時 */
+.tw{position:fixed;left:0;right:0;bottom:0;z-index:8;display:flex;align-items:center;gap:12px;max-width:480px;margin:0 auto;padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:var(--ink);color:var(--card);border-radius:18px 18px 0 0;box-shadow:0 -6px 24px rgba(0,0,0,.18)}
+.tw[hidden]{display:none}
+.tw span{flex:1;font-weight:600;font-size:.95rem;line-height:1.4}
+.tw .btn{width:auto;height:48px;padding:0 20px;flex:none;background:var(--accent);color:var(--accent-ink)}
+@media (prefers-reduced-motion:reduce){.modal.on,.box{animation:none}.tbar i{transition:none}}
+@media (max-width:360px){.total{padding:14px 14px}.total .tv{font-size:1.8rem}.prog,.conv{margin-left:14px;margin-right:14px}.prog{padding-left:0;padding-right:0}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="logo" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg></div>
+    <div><h1>成績查詢</h1><p id="sub">選班級、座號，輸入學號後 3 碼</p></div>
+  </header>
+
+  <div class="notice" id="notice" role="status" hidden></div>
+  <div class="card" id="card">
+    <form id="f" autocomplete="off" novalidate>
+      <div class="row">
+        <div><label for="cls">班級</label><div class="sel"><select id="cls" disabled><option value="">載入中…</option></select></div></div>
+        <div><label for="seat">座號</label><div class="sel"><select id="seat" disabled><option value="">先選班級</option></select></div></div>
+      </div>
+      <div class="field">
+        <label for="sid">學號後 3 碼</label>
+        <input id="sid" type="password" disabled inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="•••" autocomplete="off" enterkeyhint="go" aria-describedby="sidhelp">
+        <p class="help" id="sidhelp">例如<span class="nw">學號 11531<b>015</b></span>，請輸入 <span class="nw">015</span>（輸入完會自動查詢）</p>
+      </div>
+      <button class="btn busy" id="go" type="submit" disabled><span class="spin"></span><span id="gol">載入中…</span></button>
+      <!-- 兩個固定的提示區：錯誤用 alert、一般說明用 status，角色不在執行中切換，報讀軟體才念得出來 -->
+      <p class="msg" id="msg" role="alert"></p>
+      <p class="msg info" id="info" role="status"></p>
+    </form>
+    <div id="result"></div>
+  </div>
+  <p class="upd" id="upd" hidden></p>
+  <p class="note">🔒 成績由伺服器核對後才顯示，網頁本身不含任何成績。同一座號連續輸錯 5 次會鎖定 15 分鐘。查完請按「登出」，畫面 2 分鐘後也會自動清除。</p>
+  <p class="tlink" id="tlink" hidden><a id="tlinka" href="#" target="_blank" rel="noopener">教師登入</a></p>
+</main>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mt" aria-describedby="mp"><div class="box"><div class="ic" aria-hidden="true">!</div><h2 id="mt"></h2><p id="mp"></p><div class="acts" id="macts"></div></div></div>
+<div class="tw" id="tw" hidden><span id="twt" role="alert"></span><button type="button" class="btn" id="twk">繼續看</button></div>
+
+<script>
+/* 獨立學生頁：不放在 Google 網站上，未滿 13 歲的 Google 帳號也能開。
+   網址 ?s=部署代碼 指定要連哪位老師的 Apps Script；用不帶 Google 帳號的方式（credentials:'omit'）向它要資料。 */
+const QS=new URLSearchParams(location.search);
+const SID=(QS.get('s')||'').trim();
+const API=/^[A-Za-z0-9_-]{20,120}$/.test(SID)?'https://script.google.com/macros/s/'+SID+'/exec':'';
+window.CK=(/^[A-Za-z0-9]{4,40}$/.test(QS.get('ss')||'')&&/^[A-Za-z0-9]{4,40}$/.test(QS.get('tk')||''))?{c:QS.get('ss'),k:QS.get('tk')}:null;
+/* 和 google.script.run 一樣的寫法：withSuccessHandler(...).withFailureHandler(...).函式名(參數) */
+function apiCall(fn,args){
+  const ac=typeof AbortController==='function'?new AbortController():null;
+  const t=ac?setTimeout(()=>ac.abort(),30000):0;
+  return fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({fn:fn,args:args}),credentials:'omit',redirect:'follow',cache:'no-store',signal:ac?ac.signal:undefined})
+    .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
+    .then(j=>{if(j&&Object.prototype.hasOwnProperty.call(j,'r'))return j.r;throw new Error((j&&j.e)||'回應格式不正確')})
+    .finally(()=>clearTimeout(t));
+}
+const google={script:{get run(){
+  let ok=()=>{},no=()=>{};
+  const p={withSuccessHandler(f){ok=f;return p},withFailureHandler(f){no=f;return p}};
+  ['init','query','ckInfo','ckSign'].forEach(fn=>{p[fn]=(...a)=>{apiCall(fn,a).then(r=>ok(r),e=>no(e))}});
+  return p;
+}}};
+const $=id=>document.getElementById(id);
+const store={get(k){try{return localStorage.getItem(k)}catch(_){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(_){}}};
+if(!API){document.querySelector('main').innerHTML='<div class="card" style="text-align:center;padding:28px 18px;margin-top:20px"><b style="font-size:1.1rem">網址不完整</b><p style="color:var(--muted);margin:10px 0 0;font-size:.92rem;line-height:1.7">請用老師給的連結或 QR Code 開啟，<br>網址後面要有 ?s= 開頭的一串代碼。</p></div>';throw new Error('缺少 ?s= 部署代碼');}
+let SEATS={};
+
+if(window.CK){ckMode()}else google.script.run.withSuccessHandler(d=>{
+  if(d.subject)$('sub').textContent=d.subject+'｜選班級、座號，輸入學號後 3 碼';
+  if(d.teacherUrl){$('tlinka').href=d.teacherUrl;$('tlink').hidden=false}
+  if(d.notice){$('notice').textContent=d.notice;$('notice').hidden=false}
+  if(d.updated){$('upd').textContent='成績最後更新：'+d.updated;$('upd').hidden=false}
+  if(!d.open){$('f').innerHTML=`<div class="closed"><div class="ic">⏸</div><b>${esc(d.closedMsg)}</b><p>請稍後再回來查詢</p></div>`;return}
+  if(d.empty){$('f').innerHTML='<div class="closed"><div class="ic">📋</div><b>目前沒有可查詢的班級</b><p>系統維護中，請稍後再試或洽任課老師</p></div>';return}
+  const s=d.seats;SEATS=s;const c=$('cls');c.innerHTML='';c.add(new Option('選擇',''));
+  Object.keys(s).sort().forEach(k=>c.add(new Option(k+' 班',k)));c.disabled=false;
+  /* 記住上次的班級座號（不記學號） */
+  const lc=store.get('gq_cls'),ls=store.get('gq_seat');
+  if(lc&&SEATS[lc]){c.value=lc;fillSeats();if(ls&&SEATS[lc].includes(ls))$('seat').value=ls}
+  busy(false);$('sid').disabled=false;
+}).withFailureHandler(()=>{
+  $('gol').textContent='載入失敗';$('go').classList.remove('busy');
+  popup('載入失敗','成績查詢沒有載入成功，可能是網路不穩。',[['重新整理',()=>location.reload()]]);
+}).init();
+
+/* ===== 掃碼點名簽到：網址帶 QR 的場次與碼時，顯示簽到畫面（一般開啟仍是成績查詢）===== */
+function devId(){
+  let d=store.get('gq_dev');
+  if(!d||!/^[A-Za-z0-9]{8,40}$/.test(d)){
+    d='';try{const a=new Uint8Array(12);crypto.getRandomValues(a);a.forEach(b=>{d+=('0'+b.toString(16)).slice(-2)})}catch(_){d=''}
+    if(d.length<8)d=Math.random().toString(36).slice(2,12)+Date.now().toString(36);
+    store.set('gq_dev',d);
+  }
+  return d;
+}
+function ckMode(){
+  const DEV=devId();
+  document.querySelector('h1').textContent='點名簽到';$('sub').textContent='掃碼簽到';
+  $('f').style.display='none';document.querySelector('.note').hidden=true;
+  const box=document.createElement('div');box.id='ck';$('card').insertBefore(box,$('result'));
+  const gone=(t,m)=>{box.innerHTML=`<div class="closed"><div class="ic">⏱</div><b>${esc(t)}</b><p>${esc(m)}</p></div>`};
+  box.innerHTML='<div class="closed"><b>確認 QR Code…</b></div>';
+  let tries=0;
+  const load=()=>google.script.run.withSuccessHandler(r=>{
+    if(!r.ok)return gone(r.expired?'QR Code 已過期':'無法簽到',r.msg+(r.expired?'':'；請洽老師'));
+    form(r);
+  }).withFailureHandler(()=>{
+    if(++tries<3)return setTimeout(load,1200*tries+Math.floor(Math.random()*800));
+    gone('連線失敗','網路好像不太穩，請重新掃描 QR Code 再試一次');
+  }).ckInfo(CK.c,CK.k,DEV);
+  load();
+  function form(r){
+    box.innerHTML=`<p style="margin:0 0 14px;font-weight:700;font-size:1.05rem">${esc(r.cls)} 班・${r.per==='補'?'補點名':'第 '+esc(r.per)+' 節'}　點名簽到</p>
+    <form id="ckf" autocomplete="off" novalidate>
+      <div class="field" style="margin-top:0"><label for="ckseat">座號</label><div class="sel"><select id="ckseat"><option value="">選擇</option>${r.seats.map(n=>`<option value="${esc(n)}">${+n} 號　${esc((r.names||{})[n]||'')}</option>`).join('')}</select></div></div>
+      <div class="field"><label for="cksid">學號後 3 碼</label>
+        <input id="cksid" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="•••" autocomplete="off" enterkeyhint="go">
+        <p class="help">例如<span class="nw">學號 11531<b>015</b></span>，請輸入 <span class="nw">015</span></p></div>
+      <button class="btn" id="ckgo" type="submit"><span id="ckgol">簽到</span></button>
+      <p class="msg" id="ckmsg" role="alert"></p>
+    </form>
+    <p class="help" style="margin-top:12px">一支手機一次只能簽一個座號，請不要幫別人簽到。</p>`;
+    const msg=t=>{$('ckmsg').textContent='⚠ '+t;$('ckmsg').className='msg on'};
+    $('cksid').addEventListener('input',e=>{e.target.value=e.target.value.replace(/\D/g,'').slice(0,3);$('ckmsg').className='msg'});
+    $('ckf').addEventListener('submit',e=>{
+      e.preventDefault();$('ckmsg').className='msg';
+      const seat=$('ckseat').value,code=$('cksid').value;
+      if(!seat){msg('請先選擇座號');$('ckseat').focus();return}
+      if(!/^\d{3}$/.test(code)){msg('學號後 3 碼請輸入 3 位數字');$('cksid').focus();return}
+      $('ckgo').disabled=true;$('ckgol').textContent='簽到中…';
+      let n=0;
+      const send=()=>google.script.run.withSuccessHandler(x=>{
+        if(x.ok){box.innerHTML=`<div class="closed"><div class="ic" style="color:var(--accent)">✓</div><b>${esc(x.name)}　簽到成功</b><p>${esc(x.cls)} 班 ${+x.seat} 號。可以關閉這個頁面了。</p></div>`;return}
+        if(x.expired||x.gone)return gone(x.gone?'無法簽到':'停留太久',x.msg);
+        $('ckgo').disabled=false;$('ckgol').textContent='簽到';$('cksid').value='';msg(x.msg);
+      }).withFailureHandler(()=>{
+        /* 網路不穩：同一組資料重送沒有副作用（伺服器只算一次），自動再試 */
+        if(++n<4)return setTimeout(send,1000*n+Math.floor(Math.random()*800));
+        $('ckgo').disabled=false;$('ckgol').textContent='簽到';msg('網路不穩，這次沒有送出，請再按一次「簽到」');
+      }).ckSign(CK.c,r.ticket,seat,code,DEV);
+      send();
+    });
+  }
+}
+
+function fillSeats(){
+  const s=$('seat');s.innerHTML='';
+  if(!$('cls').value){s.add(new Option('先選班級',''));s.disabled=true;return}
+  s.add(new Option('選擇',''));SEATS[$('cls').value].forEach(n=>s.add(new Option(+n+' 號',n)));s.disabled=false;
+}
+$('cls').addEventListener('change',()=>{clearBad();fillSeats();lockCheck();if($('cls').value)$('seat').focus()});
+$('seat').addEventListener('change',()=>{clearBad();if(!lockCheck()&&$('seat').value)$('sid').focus()});
+let autoT=null;
+$('sid').addEventListener('input',e=>{
+  e.target.value=e.target.value.replace(/\D/g,'').slice(0,3);clearBad();
+  /* 輸入滿 3 碼且班級座號都選好，停 0.8 秒沒再改才自動查詢（打錯可以趁這時候改，不會白白算一次錯誤） */
+  clearTimeout(autoT);
+  if(e.target.value.length===3&&$('cls').value&&$('seat').value&&!$('go').disabled)
+    autoT=setTimeout(()=>{if($('sid').value.length===3&&!$('go').disabled)$('f').requestSubmit?$('f').requestSubmit():$('go').click()},800);
+});
+
+/* 頁面上的提示：錯誤（紅）或一般說明（綠） */
+function say(text,info){
+  const on=$(info?'info':'msg'),off=$(info?'msg':'info');
+  off.className=off.id==='info'?'msg info':'msg';off.textContent='';
+  on.className='msg on'+(info?' info':'');on.textContent=(info?'':'⚠ ')+text;
+}
+/* 清掉錯誤：拿掉紅框、aria-invalid，欄位說明恢復成原本的 */
+function clearBad(){
+  document.querySelectorAll('.bad').forEach(x=>{x.classList.remove('bad');x.removeAttribute('aria-invalid');
+    if(x.id==='sid')x.setAttribute('aria-describedby','sidhelp');else x.removeAttribute('aria-describedby')});
+  $('msg').className='msg';$('msg').textContent='';$('info').className='msg info';$('info').textContent='';
+}
+/* 一般錯誤（例如學號打錯）只在欄位下方提示，不跳視窗；同時標記欄位，報讀軟體會念出錯誤內容 */
+function err(text,el){say(text);if(el){el.classList.add('bad');el.setAttribute('aria-invalid','true');
+  el.setAttribute('aria-describedby',el.id==='sid'?'msg sidhelp':'msg');el.focus()}}
+/* 彈出視窗只用在：鎖定、載入失敗、連線失敗。acts=[[按鈕文字, 動作, 是否次要]] */
+let modalBack=null;
+function popup(title,text,acts){
+  $('mt').textContent=title;$('mp').textContent=text;
+  const box=$('macts');box.innerHTML='';
+  (acts||[['我知道了']]).forEach(([label,fn,sec])=>{const b=document.createElement('button');b.type='button';b.className='btn'+(sec?' sec':'');b.textContent=label;b.onclick=()=>{closeModal();if(fn)fn()};box.appendChild(b)});
+  modalBack=document.activeElement;document.querySelector('main').inert=true;
+  $('modal').classList.add('on');box.querySelector('button').focus();
+}
+function closeModal(){
+  $('modal').classList.remove('on');document.querySelector('main').inert=false;
+  if($('f').style.display!=='none'&&$('cls').value)lockCheck();
+  const formOn=$('f').style.display!=='none';
+  const t=formOn?($('sid').disabled?$('seat'):$('sid')):modalBack;if(t&&t.focus&&!t.disabled)t.focus();
+}
+document.addEventListener('keydown',e=>{
+  if(!$('modal').classList.contains('on'))return;
+  if(e.key==='Escape'){e.preventDefault();closeModal();return}
+  if(e.key==='Tab'){const bs=[...$('macts').querySelectorAll('button')],i=bs.indexOf(document.activeElement);e.preventDefault();bs[(i+(e.shiftKey?-1:1)+bs.length)%bs.length].focus()}
+});
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function busy(b){$('go').disabled=b;$('go').classList.toggle('busy',b);$('go').setAttribute('aria-busy',String(b));$('gol').textContent=b?'查詢中…':'查詢成績'}
+/* 鎖定：記住這個座號約幾點可以再試，期間不讓再送出（伺服器端也會擋） */
+const LOCKS={},LOCK_MIN=15;
+const hm=t=>{const d=new Date(t);return d.getHours()+':'+String(d.getMinutes()).padStart(2,'0')};
+function lockCheck(){
+  const u=LOCKS[$('cls').value+'-'+$('seat').value],on=!!(u&&u>Date.now());
+  $('sid').disabled=on;$('go').disabled=on;$('gol').textContent=on?'暫時鎖定':'查詢成績';
+  if(on&&!$('modal').classList.contains('on'))say(`這個座號暫時鎖定，約 ${hm(u)} 以後可以再試。`);
+  return on;
+}
+
+$('f').addEventListener('submit',e=>{
+  e.preventDefault();clearBad();clearTimeout(autoT);
+  if(lockCheck())return;
+  const cls=$('cls').value,seat=$('seat').value,sid=$('sid').value;
+  if(!cls)return err('請先選擇班級',$('cls'));
+  if(!seat)return err('請選擇座號',$('seat'));
+  if(!/^\d{3}$/.test(sid))return err('學號後 3 碼請輸入 3 位數字',$('sid'));
+  $('sid').blur();busy(true);
+  google.script.run
+    .withSuccessHandler(r=>{busy(false);
+      if(!r.ok){
+        $('sid').value='';
+        if(r.locked&&/鎖定/.test(r.msg)){
+          const until=Date.now()+LOCK_MIN*60000;LOCKS[cls+'-'+seat]=until;
+          popup('這個座號暫時鎖定',`${r.msg}。\n約 ${hm(until)} 以後可以再試。如果不是你自己輸錯的，請告訴任課老師。`);
+          lockCheck();return;
+        }
+        if(r.locked)return popup('暫停查詢',r.msg);
+        return err(r.msg,$('sid'));
+      }
+      store.set('gq_cls',cls);store.set('gq_seat',seat);show(r)})
+    .withFailureHandler(()=>{busy(false);popup('連線失敗','網路好像不太穩，這次沒有查到成績。學號已經幫你留著，按「再試一次」就好。',[['再試一次',()=>$('f').requestSubmit?$('f').requestSubmit():$('go').click()],['取消',null,true]])})
+    .query(cls,seat,sid);
+});
+
+function show(r){
+  if(!r.dists)r.dists=r.dist?[r.dist]:[];   /* 相容舊版程式碼.gs */
+  let h='';
+  r.parts.forEach(p=>{
+    const has=p.raw!=='', st=!has&&p.status;
+    const raw=has?esc(p.raw):(st?esc(p.status):'—');
+    const res=has?esc(p.score):(st?'0.0':'尚未評分');
+    h+=`<li class="row2"><div class="nm">${esc(p.name)}${p.bonus?'<span class="tag">加分</span>':''}</div>
+      <div class="cells"><div class="cell${has?'':(st?' st':' na')}"><small>原始分數</small><b>${raw}</b></div><div class="op">×</div>
+      <div class="cell"><small>占比</small><b>${esc(p.pct)}</b></div><div class="op">＝</div>
+      <div class="cell res${has||st?'':' na'}"><small>${p.bonus?'加分':'換算得分'}</small><b>${res}</b></div></div>
+      ${p.zeroed?'<div class="inote">⚠ 這一項你還沒有成績，全班多數已評分，暫時以 0 分計算；有疑問請找老師</div>':''}
+      ${st&&!p.zeroed?`<div class="inote">「${esc(p.status)}」以 0 分計算</div>`:''}</li>`;
+  });
+  /* 順序：先看學期成績（結論），再看每一項怎麼算，最後是人數分布（預設展開，可收起） */
+  const pr=progress(r.parts), part=!!(pr&&pr.done<pr.all);
+  const items=h;
+  h=`<div class="who"><h2 id="rh" tabindex="-1">${esc(r.name)}</h2><span>${esc(r.cls)} 班 ${+r.seat} 號</span></div>
+  <div class="totalwrap"><div class="total"><div><div class="tl">${esc(r.totalLabel)}${part?'<span class="ing">評分中</span>':''}</div><small>${part?`已評分 ${Math.round(pr.done*10)/10}／${pr.all} 分${pr.bonus>0?`，含加分 ${(Math.round(pr.bonus*10)/10).toFixed(1)}`:''}`:'各項換算得分加總'}</small></div><div class="tv">${r.total!==''&&r.total!=null?esc(r.total):'—'}${part&&!(pr.bonus>0)?`<small>/ ${Math.round(pr.done*10)/10}</small>`:''}</div></div>
+  ${pr?progHtml(pr):''}</div>
+  ${r.att?`<div class="attbox"><b>本學期出缺席</b><span>缺席 <em>${r.att['缺席']}</em> 次・遲到 <em>${r.att['遲到']}</em> 次・請假 <em>${r.att['請假']}</em> 次</span><small>已點名 ${r.att.sessions} 堂</small></div>`:''}
+  <h3 class="sech">每一項怎麼算</h3>
+  <p class="how">每一項：<b>原始分數 × 占比 ＝ 換算得分</b><br>各項換算得分加起來，就是上方的${esc(r.totalLabel)}</p>
+  <ul class="items">${items}</ul>
+  ${r.dists&&r.dists.length?`<details class="dist" id="distBox" open><summary><span>看人數分布<small>只看得到人數，不會顯示名次或別人的分數</small></span></summary>${distTabs(r.dists)}<div id="distBody">${distHtml(r.dists[0])}</div></details>`:''}
+  <p class="hint">換算得分四捨五入至小數點第 1 位；學期成績以未四捨五入的分數加總，可能與各項相加差 0.1</p>
+  <button class="btn out" type="button" id="out">登出</button><div class="tbar" id="tbar"><i id="tbi"></i></div><div class="timer" id="tm"></div>`;
+  clearBad();$('f').style.display='none';$('result').innerHTML=h;$('result').style.display='block';
+  $('out').onclick=()=>{logout();$('sid').focus()};
+  document.querySelectorAll('.dtab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.dtab').forEach(x=>{x.classList.toggle('on',x===b);x.setAttribute('aria-pressed',String(x===b))});$('distBody').innerHTML=distHtml(r.dists[+b.dataset.i])});
+  window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+  $('rh').focus({preventScroll:true});
+  startTimer();
+}
+/* 自動登出：120 秒，剩 20 秒時在畫面下方問「還要繼續看嗎？」，按一下重新計時 */
+let tmr=null,left=0;const T=120,WARN=20;
+function startTimer(){clearInterval(tmr);left=T;$('tw').hidden=true;tick();tmr=setInterval(tick,1000)}
+function tick(){
+  if(!$('tm'))return;
+  $('tm').textContent=`${left} 秒後自動登出`;$('tbi').style.width=(left/T*100)+'%';$('tbar').classList.toggle('low',left<=WARN);
+  if(left<=WARN&&$('tw').hidden){$('tw').hidden=false;$('twt').textContent=`快要自動登出了（剩 ${WARN} 秒），還要繼續看嗎？`}
+  if(left<=0){logout();say('已自動登出。要再看成績，重新輸入學號後 3 碼就可以。',true);$('sid').focus();return}
+  left--;
+}
+$('twk').onclick=()=>{startTimer();const h=$('rh');if(h)h.focus({preventScroll:true})};
+/* 計算已評分比例：只算一般項目（加分項目另外加總成 bonus），有分數或有「缺交」等文字都算已評分；空白但暫時以 0 分計（zeroed）的不算 */
+function progress(parts){
+  let all=0,done=0,earned=0,bonus=0;
+  const segs=[];
+  parts.forEach(p=>{if(p.bonus){if(p.score!=='')bonus+=parseFloat(p.score)||0;return}const w=parseFloat(p.pct);if(!(w>0))return;all+=w;
+    const ok=(p.raw!==''&&!p.zeroed)||!!p.status;segs.push({name:p.name,w,ok});
+    if(ok){done+=w;if(p.score!=='')earned+=parseFloat(p.score)||0}});
+  if(!all)return null;return {all,done,earned,bonus,segs};
+}
+function progHtml(pr){
+  const g=x=>(Math.round(x*10)/10).toFixed(1), f=x=>g(x).replace(/\.0$/,'');
+  const bar=`<div class="segs">${pr.segs.map(g=>`<i class="${g.ok?'ok':''}" style="flex:${g.w}"></i>`).join('')}</div>`;
+  const okL=pr.segs.filter(g=>g.ok), noL=pr.segs.filter(g=>!g.ok);
+  const lst=a=>a.map(g=>`${esc(g.name)} ${f(g.w)}%`).join('、');
+  if(!noL.length)return `<div class="prog">${bar}<div class="pt"><span>✓ 所有項目都已評分，這就是你的學期成績</span></div></div>`;
+  let h=`<div class="prog">${bar}<div class="lg">${okL.length?`<div><b class="d ok"></b>已評分：${lst(okL)}</div>`:''}<div><b class="d"></b>還沒評分：${lst(noL)}</div></div></div>`;
+  /* 加分項目另外列出：學期成績＝一般項目得分＋加分，換算時一般項目照比例換算後再加回加分 */
+  const bn=pr.bonus>0;
+  if(pr.done>0){const conv=pr.earned/pr.done*pr.all+pr.bonus;
+    h+=`<div class="conv"><div class="cv1">已評分的部分滿分 <b>${f(pr.done)}</b> 分，你拿到 <b>${g(pr.earned)}</b> 分${bn?`，另有加分 <b>${g(pr.bonus)}</b> 分`:''}</div>
+    <div class="cv2"><span>換算成 ${f(pr.all)} 分制${bn?'（含加分）':''}，目前表現約</span><b>${g(conv)}<small> 分</small></b></div>
+    <small>${g(pr.earned)} ÷ ${f(pr.done)} × ${f(pr.all)}${bn?` ＋ 加分 ${g(pr.bonus)}`:''} ≈ ${g(conv)}，僅供參考；${noL.map(g=>esc(g.name)).join('、')}打完分數後，學期成績才會確定</small></div>`}
+  return h;
+}
+function distTabs(ds){
+  if(ds.length<2)return '';
+  return `<div class="dtabs" role="group" aria-label="選擇要看的分布">${ds.map((d,i)=>`<button type="button" class="dtab${i?'':' on'}" data-i="${i}" aria-pressed="${i?'false':'true'}">${esc(d.key)}</button>`).join('')}</div>`;
+}
+function distHtml(d){
+  const max=Math.max(...d.bins.map(b=>b.n))||1, me=d.bins[d.mine], item=d.kind==='item';
+  const nm=esc(d.key), unit=item?'原始分數':'';
+  let bars='';
+  const step=d.bins.length>8?2:1;
+  d.bins.forEach((b,i)=>{const on=i===d.mine;
+    bars+=`<div class="bar${on?' on':''}" title="${b.lo}–${b.hi} 分：${b.n} 人">${on?`<em>你在這組</em>`:''}<span class="bn">${b.n||''}</span><i style="height:${Math.max(b.n/max*100,b.n?4:0)}%"></i><span class="bl">${i%step===0||on?b.lo:''}</span></div>`});
+  let avg='';
+  if(d.avg!=null&&d.lo!=null){const pos=Math.min(Math.max((d.avg-d.lo)/(d.width*d.bins.length)*100,0),100);
+    /* 平均線靠近左右邊緣時，標籤改成往內對齊，避免被切掉 */
+    avg=`<div class="avg${pos<15?' l':pos>85?' r':''}" style="left:${pos}%"><span>平均 ${d.avg}</span></div>`}
+  /* 給報讀軟體的文字版：每一組幾人、你在哪一組、平均 */
+  const sum=`全體${nm}分布，共 ${d.total} 人：`+d.bins.map((b,i)=>`${b.lo} 到 ${b.hi} 分 ${b.n} 人${i===d.mine?'（你在這組）':''}`).join('、')+(d.avg!=null?`；全體平均 ${d.avg} 分`:'');
+  return `<div class="dh"><b>全體${nm}分布${item?'<small>（原始分數）</small>':''}</b><span>共 ${d.total} 人・每 ${d.width} 分一組，例如 ${d.lo}–${d.lo+d.width} 分</span></div>
+  <div class="axy" aria-hidden="true">人數（柱子上的數字）</div>
+  <div class="bars" role="img" aria-label="${esc(sum)}">${bars}${avg}</div>
+  <div class="axx"><span></span><span>${item?'原始分數':'學期成績'}（分）→</span></div>
+  ${me?`<p class="dm">你的${nm}${unit}落在 <b>${me.lo}–${me.hi} 分</b>這一組，這組共有 ${me.n}&nbsp;人${d.avg!=null?`<br>虛線是全體平均 ${d.avg} 分`:''}</p>`
+      :`<p class="dm">你的${nm}目前沒有分數${d.avg!=null?`，全體平均 ${d.avg} 分`:''}</p>`}`;
+}
+function logout(){clearInterval(tmr);$('tw').hidden=true;$('result').style.display='none';$('result').innerHTML='';$('sid').value='';$('f').style.display='block';clearBad();lockCheck()}
+/* 切換到別的 App：立刻把成績從畫面上清掉（多工畫面也看不到）。
+   3 分鐘內回來：班級座號都保留，只要再輸入學號後 3 碼；超過 3 分鐘：完全登出，班級座號也要重選。 */
+let hiddenAt=0;const AWAY=3*60*1000;
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){if($('result').style.display==='block'){hiddenAt=Date.now();logout()}return}
+  if(!hiddenAt)return;
+  const away=Date.now()-hiddenAt;hiddenAt=0;
+  if(away<=AWAY){
+    if(!lockCheck()){say('成績先遮起來了（你剛剛切換到別的畫面）。再輸入一次學號後 3 碼就能繼續看。',true);$('sid').focus()}
+  }else{
+    $('cls').value='';fillSeats();lockCheck();
+    say('離開超過 3 分鐘，已經自動登出。要看成績，請重新選班級和座號。',true);$('cls').focus();
+  }
+});
+</script>
+</body>
+</html>
